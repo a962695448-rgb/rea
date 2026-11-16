@@ -757,6 +757,8 @@ try {
   await truncate(oversizedPath, WEB_NETWORK_CAPTURE_LIMITS.inputBytes + 1);
   await copyFile(join(runtime.path, "producer.har"), privatePath);
   for (const mode of ["cli", "mcp"]) {
+    // CLI errors name projected command fields; MCP keeps contract fields.
+    const captureField = mode === "cli" ? "capturePath" : "capture_path";
     for (const format of ["har", "mitmproxy"]) {
       const failure = await inspect(
         mode,
@@ -764,10 +766,7 @@ try {
         "invalid_input",
       );
       assert.equal(failure.details.issues[0].reason, "out_of_range");
-      // CLI errors name projected command fields; MCP keeps contract fields.
-      assert.deepEqual(failure.details.issues[0].path, [
-        mode === "cli" ? "capturePath" : "capture_path",
-      ]);
+      assert.deepEqual(failure.details.issues[0].path, [captureField]);
       assert.equal(
         failure.details.issues[0].expected.maximum_capture_bytes,
         WEB_NETWORK_CAPTURE_LIMITS.inputBytes,
@@ -788,7 +787,7 @@ try {
       );
       const issue = failure.details.issues[0];
       assert.equal(issue.reason, "out_of_range");
-      assert.equal(issue.path[0], "capture_path");
+      assert.equal(issue.path[0], captureField);
       assert.match(issue.path[1], /^\/_extension\/child/);
       assert.equal(
         issue.expected.maximum_capture_nesting,
@@ -814,6 +813,7 @@ try {
       "invalid_input",
     );
     assert.equal(credentialDepth.details.issues[0].reason, "out_of_range");
+    assert.equal(credentialDepth.details.issues[0].path[0], captureField);
     assert.match(
       credentialDepth.details.issues[0].path[1],
       /^\/request\/headers\/0\/1\/child/,

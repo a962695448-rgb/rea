@@ -54,6 +54,49 @@ cliTest(
 );
 
 cliTest(
+  "preserves the decoder pointer after projecting a deep capture's input field",
+  async ({ cli }) => {
+    const root = await createTestTempDirectory("rea-capture-deep-");
+    const path = join(root, "deep.har");
+    let extension: unknown = "leaf";
+    for (let depth = 0; depth < WEB_NETWORK_CAPTURE_LIMITS.depth + 2; depth++)
+      extension = { child: extension };
+    await writeFile(
+      path,
+      JSON.stringify({ ...JSON.parse(protobufHar()), _extension: extension }),
+    );
+    const cliResult = await cli.run({
+      arguments: ["inspect-web-network-capture", path, "har", "--json"],
+    });
+    expect(cliResult.exitCode).not.toBe(0);
+    const { call } = await connectLocalToolsMcp();
+    const mcpResult = await call("inspect_web_network_capture", {
+      capture_path: path,
+      format: "har",
+    });
+    expect(mcpResult.isError).toBe(true);
+    for (const [error, field] of [
+      [cliResult.json, "capturePath"],
+      [parseMcpToolError(mcpResult).error, "capture_path"],
+    ] as const)
+      expect(error).toMatchObject({
+        category: "invalid_input",
+        details: {
+          issues: [
+            {
+              path: [field, expect.stringMatching(/^\/_extension\/child/u)],
+              reason: "out_of_range",
+              expected: {
+                maximum_capture_nesting: WEB_NETWORK_CAPTURE_LIMITS.depth,
+              },
+            },
+          ],
+        },
+      });
+  },
+);
+
+cliTest(
   "retains selected capture paths without exposing declared sensitive values",
   async ({ cli }) => {
     const root = await createTestTempDirectory("rea-capture-selected-");
