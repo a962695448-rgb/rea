@@ -170,6 +170,7 @@ describe("decompile_all MCP caveats", () => {
       counts: { written: 20, failed: 0 },
       limitations: [
         "Target SHA-256 was not observed, so this export cannot be resumed.",
+        "20 exported function record(s) report an unavailable body: procedure_info returned an invalid body.",
       ],
     });
     // The manifest owns export identity caveats. The outer Evidence retains the

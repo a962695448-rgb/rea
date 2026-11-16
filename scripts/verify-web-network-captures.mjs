@@ -764,7 +764,10 @@ try {
         "invalid_input",
       );
       assert.equal(failure.details.issues[0].reason, "out_of_range");
-      assert.deepEqual(failure.details.issues[0].path, ["capture_path"]);
+      // CLI errors name projected command fields; MCP keeps contract fields.
+      assert.deepEqual(failure.details.issues[0].path, [
+        mode === "cli" ? "capturePath" : "capture_path",
+      ]);
       assert.equal(
         failure.details.issues[0].expected.maximum_capture_bytes,
         WEB_NETWORK_CAPTURE_LIMITS.inputBytes,
