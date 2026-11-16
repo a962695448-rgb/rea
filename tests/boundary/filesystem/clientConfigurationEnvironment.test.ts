@@ -222,24 +222,22 @@ it.skipIf(process.platform !== "win32").each([
   },
 );
 
-it.skipIf(process.platform !== "win32")(
-  "preserves a lowercase explicit Kimi schema profile instead of inserting a conflicting default",
-  async () => {
+it.each(["compact", "full"])(
+  "validates lowercase Kimi schema profile %s with Windows environment semantics",
+  async (profile) => {
     const home = await createTestTempDirectory("rea-kimi-case-");
     await mkdir(join(home, ".kimi-code"));
     const configPath = join(home, ".kimi-code/mcp.json");
-    await writeFile(
-      configPath,
-      JSON.stringify({
-        mcpServers: {
-          rea: {
-            command: staleOwnedCommand[0],
-            args: staleOwnedCommand.slice(1),
-            env: { rea_mcp_input_schema_profile: "full" },
-          },
+    const source = JSON.stringify({
+      mcpServers: {
+        rea: {
+          command: staleOwnedCommand[0],
+          args: staleOwnedCommand.slice(1),
+          env: { rea_mcp_input_schema_profile: profile },
         },
-      }),
-    );
+      },
+    });
+    await writeFile(configPath, source);
     const client = {
       name: "kimi",
       registrationProfile: supportedClientRegistrationProfile("kimi"),
@@ -247,18 +245,35 @@ it.skipIf(process.platform !== "win32")(
       configPath,
     } as const;
     const command = currentClientRegistrationCommand();
-    expect(
-      await configureClientConfiguration(client, {}, command),
-    ).toMatchObject({ status: "configured" });
+    const result = await configureClientConfiguration(
+      client,
+      {},
+      command,
+      undefined,
+      "win32",
+    );
+    if (profile === "full") {
+      // The retired profile must still fail closed after case folding, before
+      // either changing the caller's file or creating a recovery backup.
+      expect(result).toMatchObject({ status: "failed", reason: "readback" });
+      expect(await readFile(configPath, "utf8")).toBe(source);
+      await expect(access(`${configPath}.rea.backup`)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      return;
+    }
+    expect(result, JSON.stringify(result)).toMatchObject({
+      status: "configured",
+    });
     const parsed = parseClientConfiguration(
       await readFile(configPath, "utf8"),
       "kimi",
     );
     expect(effectiveClientServer(parsed, "rea")).toHaveProperty("env", {
-      rea_mcp_input_schema_profile: "full",
+      rea_mcp_input_schema_profile: "compact",
     });
     const statuses = await readClientRegistrationStatuses(home, command[1], {
-      platform: HOST_PLATFORM.platform,
+      platform: "win32",
       environment: {},
     });
     expect(statuses.find(({ client }) => client === "kimi")).toMatchObject({
