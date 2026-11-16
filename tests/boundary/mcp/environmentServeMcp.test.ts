@@ -25,9 +25,9 @@ import {
 import { createMcpSchemaValidation } from "../../fixtures/mcpSchemaValidation.js";
 
 const CARD_PATH = "/.well-known/agent-env.json";
-/** SHA-256 of the card served for the fixture named "renamed", its descriptions naming each tool's recorded responses; pure replay must serve these bytes. */
+/** SHA-256 of the card served for the fixture named "renamed", its descriptions naming each tool's recorded responses and schemas projected into the portable advertised dialect; pure replay must serve these bytes. */
 const REPLAY_CARD_SHA256 =
-  "825703b02f48d614b3c4690445b0b6b00333d975406dc7e8dd335836bceb7d59";
+  "c303f523221a59d0cd8396468fb13e91dd2aec5dc4cb645e633919e499cb3d00";
 
 /** Serve the fixture pair as pure replay through the built CLI. */
 const serveReplayOnly = async (
@@ -316,9 +316,30 @@ describe("rea environment-serve --replay-only", () => {
         capabilities: { extensions: null, operations: [] },
         children_environments: null,
       });
+      const cardTools = (
+        body as {
+          capabilities: {
+            tools: { name: string; inputSchema: Record<string, unknown> }[];
+          };
+        }
+      ).capabilities.tools;
+      expect(cardTools).toHaveLength(source.manifest.tools.length);
+      // Like tools/list, the card advertises disjoint query alternatives as
+      // anyOf rather than leaking the canonical-only oneOf dialect.
       expect(
-        (body as { capabilities: { tools: unknown[] } }).capabilities.tools,
-      ).toHaveLength(source.manifest.tools.length);
+        cardTools.find(({ name }) => name === "get_annotations")?.inputSchema,
+      ).toMatchObject({
+        properties: {
+          limit: {
+            anyOf: [
+              { type: "string" },
+              { type: "number" },
+              { type: "boolean" },
+              { type: "array", items: { type: "string" } },
+            ],
+          },
+        },
+      });
       const rpc = await fetch(new URL("/agentenv", origin), {
         method: "POST",
         headers: { "content-type": "application/json" },
