@@ -175,7 +175,9 @@ describe("decompile_all MCP caveats", () => {
     // The manifest owns export identity caveats. The outer Evidence retains the
     // workflow line, 8 provider caveats, and the count of 33 omitted observations.
     expect(evidence.limitations).toHaveLength(10);
-    expect(evidence.limitations).toContain("Derived by an REA composed workflow.");
+    expect(evidence.limitations).toContain(
+      "Derived by an REA composed workflow.",
+    );
     expect(evidence.limitations.at(-1)).toMatch(
       /^33 per-item provider limitation observations were omitted/u,
     );
