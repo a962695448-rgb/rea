@@ -37,9 +37,14 @@ async function prepareController(controller: string, version: string) {
     recursive: true,
     filter: (source) => !/\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(source),
   });
+  // Verifier modules use the package's private runtime aliases as well as
+  // relative imports. Preserve their production owner in the isolated package.
+  const { imports } = z
+    .object({ imports: z.record(z.string(), z.string()) })
+    .parse(JSON.parse(await readFile("package.json", "utf8")));
   await writeFile(
     join(controller, "package.json"),
-    JSON.stringify({ name: "rea-agents", version, type: "module" }),
+    JSON.stringify({ name: "rea-agents", version, type: "module", imports }),
   );
   await symlink(
     resolve("node_modules"),

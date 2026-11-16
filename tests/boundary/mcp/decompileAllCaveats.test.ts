@@ -168,10 +168,14 @@ describe("decompile_all MCP caveats", () => {
     const evidence = parseEvidence(result.structuredContent);
     expect(evidence.normalized_result).toMatchObject({
       counts: { written: 20, failed: 0 },
+      limitations: [
+        "Target SHA-256 was not observed, so this export cannot be resumed.",
+      ],
     });
-    // 40 address-specific caveats plus one oversized caveat: 8 kept and 33 counted, beside the workflow
-    // line and this target-less fixture's identity caveat.
-    expect(evidence.limitations).toHaveLength(11);
+    // The manifest owns export identity caveats. The outer Evidence retains the
+    // workflow line, 8 provider caveats, and the count of 33 omitted observations.
+    expect(evidence.limitations).toHaveLength(10);
+    expect(evidence.limitations).toContain("Derived by an REA composed workflow.");
     expect(evidence.limitations.at(-1)).toMatch(
       /^33 per-item provider limitation observations were omitted/u,
     );
